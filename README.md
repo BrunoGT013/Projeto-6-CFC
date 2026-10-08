@@ -60,13 +60,21 @@ harmônicos que não existem no sinal original.
 
 **Decoder.** O áudio gravado vem como matriz `numAmostras × canais`; os canais são
 combinados em uma lista só. A FFT é calculada com janela de Hann (reduz o
-vazamento espectral que alargaria os picos). Em seguida `peakutils.indexes` acha
-os máximos do espectro; os picos são ordenados do mais forte ao mais fraco e
-qualquer pico a menos de **5 Hz** de um pico maior já aceito é descartado — é o
-mesmo tom alargado pela transmissão, não um tom novo. Dos 5 picos mais fortes,
-procura-se o par que casa (tolerância de 20 Hz) com uma linha e uma coluna da
-tabela: esse par identifica a tecla. Os demais picos são ruído (rede elétrica,
-ruído ambiente).
+vazamento espectral que alargaria os picos).
+
+Antes de procurar os picos, o espectro é **recortado na faixa 600–1800 Hz**
+(`FMIN`/`FMAX` em `dtmf.py`). Essa faixa cobre as oito frequências DTMF com folga
+para a tolerância de 20 Hz — o extremo inferior exige 677 Hz e o superior 1653 Hz —
+e descarta tudo que não pode ser um tom DTMF: o zumbido de 60 Hz da rede elétrica,
+ruído grave e ruído agudo. O recorte traz dois ganhos: o limiar de detecção passa a
+ser relativo ao maior pico **dentro** da faixa, e as vagas de pico não são gastas
+com ruído de fora dela.
+
+Em seguida `peakutils.indexes` acha os máximos; os picos são ordenados do mais
+forte ao mais fraco e qualquer pico a menos de **5 Hz** de um pico maior já aceito
+é descartado — é o mesmo tom alargado pela transmissão, não um tom novo. Dos picos
+restantes, procura-se o par que casa (tolerância de 20 Hz) com uma linha e uma
+coluna da tabela: esse par identifica a tecla.
 
 ## Resultados dos testes
 
@@ -74,14 +82,35 @@ ruído ambiente).
 
 - 16/16 teclas reconhecidas no sinal limpo;
 - 16/16 com ruído branco + 3 tons parasitas (60 Hz, 310 Hz, 2050 Hz) mais fortes
-  que os tons DTMF em parte do espectro;
+  que os tons DTMF em parte do espectro. Com o recorte de faixa os parasitas nem
+  aparecem entre os picos: sobram só as duas raias DTMF;
 - ida e volta pelo WAV de 16 bits (digitalização real) sem erro;
 - a tecla 5 continua sendo reconhecida com ruído branco de σ = 4,0, ou seja,
   **8× a amplitude de cada senoide DTMF** — a FFT concentra a energia dos tons em
   duas raias, enquanto o ruído se espalha por todo o espectro.
 
+### Efeito do recorte de faixa
+
+Acerto nas 16 teclas × 3 sementes de ruído (48 casos por linha), comparando a
+varredura do espectro inteiro com o recorte em 600–1800 Hz:
+
+| σ do ruído | 50–22050 Hz | 600–1800 Hz |
+|---|---|---|
+| 4  | 48/48 | 48/48 |
+| 8  | 48/48 | 48/48 |
+| 10 | 44/48 | **48/48** |
+| 12 | 41/48 | **44/48** |
+| 16 | 10/48 | **19/48** |
+| 20 | 0/48  | **12/48** |
+| 25 | 0/48  | **4/48** |
+
+Até σ = 8 as duas são equivalentes: o ruído ainda não compete com os tons. A
+diferença aparece quando o ruído fica forte — em σ = 20 a varredura completa erra
+todos os casos, enquanto o recorte ainda acerta 1 em 4.
+
 Gráficos gerados: `encode_tecla_*.png` (sinal no tempo + FFT transmitida) e
-`decode_fft.png` (sinal captado + FFT com os picos marcados).
+`decode_fft.png` (sinal captado + FFT com os picos marcados). O eixo de
+frequência dos espectros mostra a faixa 600–1800 Hz, a mesma usada na detecção.
 
 ---
 

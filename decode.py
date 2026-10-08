@@ -19,7 +19,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from suaBibSignal import signalMeu
-from dtmf import DTMF, FS, LINHAS, COLUNAS, tecla_de, tabela_str, ler_wav
+from dtmf import (DTMF, FS, FMIN, FMAX, LINHAS, COLUNAS, tecla_de,
+                  tabela_str, ler_wav)
 
 try:
     import peakutils
@@ -78,28 +79,41 @@ def simular(tecla, duracao=3.0, fs=FS, ruido=0.25, semente=0):
 
 
 # ------------------------------------------------------------------- picos
-def achar_picos(xf, yf, n=5, dist_hz=5.0, fmin=50.0):
+def achar_picos(xf, yf, n=5, dist_hz=5.0, fmin=FMIN, fmax=FMAX):
     """
     Devolve os n maiores picos de yf como [(freq, amplitude), ...].
+
+    Apenas o trecho fmin..fmax do espectro e analisado. Essa faixa cobre as 8
+    frequencias DTMF com folga e exclui o que nao pode ser um tom DTMF (60 Hz
+    da rede eletrica, ruido grave, ruido agudo). Recortar antes de procurar os
+    picos traz dois ganhos: o limiar de deteccao passa a ser relativo ao maior
+    pico DENTRO da faixa, e as n vagas nao sao gastas com ruido fora dela.
+
     Picos a menos de dist_hz de um pico maior ja aceito sao descartados
     (sao o mesmo pico alargado pela transmissao).
     """
     df = xf[1] - xf[0]
 
+    # recorta a faixa de interesse antes de procurar os picos
+    i0, i1 = np.searchsorted(xf, (fmin, fmax))
+    xb, yb = xf[i0:i1], yf[i0:i1]
+    if len(yb) < 3:
+        return []
+
     if TEM_PEAKUTILS:
-        idx = peakutils.indexes(yf, thres=0.05, min_dist=max(1, int(dist_hz / df)))
+        idx = peakutils.indexes(yb, thres=0.05, min_dist=max(1, int(dist_hz / df)))
     else:
         # fallback: maximos locais simples, caso peakutils nao esteja instalado
-        idx = np.where((yf[1:-1] > yf[:-2]) & (yf[1:-1] >= yf[2:]))[0] + 1
-        idx = idx[yf[idx] > 0.05 * yf.max()]
+        idx = np.where((yb[1:-1] > yb[:-2]) & (yb[1:-1] >= yb[2:]))[0] + 1
+        idx = idx[yb[idx] > 0.05 * yb.max()]
 
-    idx = [i for i in idx if xf[i] >= fmin]
-    idx.sort(key=lambda i: yf[i], reverse=True)   # do mais forte ao mais fraco
+    # do mais forte ao mais fraco
+    idx = sorted(idx, key=lambda i: yb[i], reverse=True)
 
     picos = []
     for i in idx:
-        if all(abs(xf[i] - f) > dist_hz for f, _ in picos):
-            picos.append((float(xf[i]), float(yf[i])))
+        if all(abs(xb[i] - f) > dist_hz for f, _ in picos):
+            picos.append((float(xb[i]), float(yb[i])))
         if len(picos) == n:
             break
     return picos
@@ -150,7 +164,7 @@ def plotar(dados, xf, yf, picos, fs=FS, tecla=None):
     ax2.set_title(titulo)
     ax2.set_xlabel("Frequencia (Hz)")
     ax2.set_ylabel("Amplitude")
-    ax2.set_xlim(0, 2500)
+    ax2.set_xlim(FMIN, FMAX)
     ax2.grid(True)
 
     fig.tight_layout()

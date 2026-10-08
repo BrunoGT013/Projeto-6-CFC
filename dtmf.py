@@ -10,6 +10,12 @@ BITS = 16           # bits por amostra na digitalizacao
 LINHAS = [697, 770, 852, 941]        # frequencias baixas  (linhas do teclado)
 COLUNAS = [1209, 1336, 1477, 1633]   # frequencias altas   (colunas do teclado)
 
+# Faixa util do espectro (Hz). Cobre as 8 frequencias DTMF com folga para a
+# tolerancia de 20 Hz (677..1653) e descarta o que nao pode ser tom DTMF:
+# zumbido de 60 Hz da rede, ruido grave e ruido agudo.
+FMIN = 600
+FMAX = 1800
+
 TECLADO = [
     ["1", "2", "3", "A"],
     ["4", "5", "6", "B"],

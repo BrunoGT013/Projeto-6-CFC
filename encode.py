@@ -18,7 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from suaBibSignal import signalMeu
-from dtmf import DTMF, FS, tabela_str, salvar_wav
+from dtmf import DTMF, FS, FMIN, FMAX, tabela_str, salvar_wav
 
 
 def signal_handler(signal, frame):
@@ -82,7 +82,7 @@ def plotar(t, tom, s1, s2, tecla, fs=FS):
     ax2.set_title("Transformada de Fourier do sinal transmitido")
     ax2.set_xlabel("Frequencia (Hz)")
     ax2.set_ylabel("Amplitude")
-    ax2.set_xlim(0, 2500)
+    ax2.set_xlim(FMIN, FMAX)
     ax2.grid(True)
 
     fig.tight_layout()
