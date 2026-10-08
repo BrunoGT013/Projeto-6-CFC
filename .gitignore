@@ -1,0 +1,8 @@
+# audio gerado pelos scripts
+*.wav
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
